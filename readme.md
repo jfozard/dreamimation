@@ -18,7 +18,7 @@ python main_vid.py --workspace corgi --static corgi.pth
 
 Sample results
 
-https://discord.com/channels/823813159592001537/970407461754396762/1090371359462408302
+
 
 Note that I've swapped the camera coordinate system back to the original NeRF / blender / NeRFStudio
 one.
@@ -26,6 +26,10 @@ one.
 ```
 @misc{stable-dreamfusion,
     Author = {Jiaxiang Tang},
+
+https://user-images.githubusercontent.com/4390954/228365338-5e3c27e0-ecd3-414a-a513-a9f0500b5b4a.mp4
+
+
     Year = {2022},
     Note = {https://github.com/ashawkey/stable-dreamfusion},
     Title = {Stable-dreamfusion: Text-to-3D with Stable-diffusion}
