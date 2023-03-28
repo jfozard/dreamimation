@@ -1,5 +1,5 @@
 from transformers import CLIPTextModel, CLIPTokenizer, logging
-from diffusers import AutoencoderKL, UNet2DConditionModel, PNDMScheduler, DDIMScheduler
+from diffusers import AutoencoderKL, UNet3DConditionModel, PNDMScheduler, DDIMScheduler
 from diffusers.utils.import_utils import is_xformers_available
 
 # suppress partial model loading warning
@@ -32,37 +32,22 @@ def seed_everything(seed):
     #torch.backends.cudnn.deterministic = True
     #torch.backends.cudnn.benchmark = True
 
-class StableDiffusion(nn.Module):
-    def __init__(self, device, sd_version='2.1', hf_key=None):
+class VideoDiffusion(nn.Module):
+    def __init__(self, device, model_key='damo-vilab/text-to-video-ms-1.7b', hf_key=None):
         super().__init__()
 
         self.device = device
-        self.sd_version = sd_version
-
-        print(f'[INFO] loading stable diffusion...')
-        
-        if hf_key is not None:
-            print(f'[INFO] using hugging face custom model key: {hf_key}')
-            model_key = hf_key
-        elif self.sd_version == '2.1':
-            model_key = "stabilityai/stable-diffusion-2-1-base"
-        elif self.sd_version == '2.0':
-            model_key = "stabilityai/stable-diffusion-2-base"
-        elif self.sd_version == '1.5':
-            model_key = "runwayml/stable-diffusion-v1-5"
-        else:
-            raise ValueError(f'Stable-diffusion version {self.sd_version} not supported.')
 
         # Create model
-        self.vae = AutoencoderKL.from_pretrained(model_key, subfolder="vae").to(self.device)
+        self.vae = AutoencoderKL.from_pretrained(model_key, subfolder="vae",  torch_dtype=torch.float16, variant="fp16").to(self.device)
         self.tokenizer = CLIPTokenizer.from_pretrained(model_key, subfolder="tokenizer")
-        self.text_encoder = CLIPTextModel.from_pretrained(model_key, subfolder="text_encoder").cpu() #.to(self.device)
-        self.unet = UNet2DConditionModel.from_pretrained(model_key, subfolder="unet").to(self.device)
+        self.text_encoder = CLIPTextModel.from_pretrained(model_key, subfolder="text_encoder", variant="fp16").cpu() #.to(self.device)
+        self.unet = UNet3DConditionModel.from_pretrained(model_key, subfolder="unet",  torch_dtype=torch.float16, variant="fp16").to(self.device)
 
         if is_xformers_available():
             self.unet.enable_xformers_memory_efficient_attention()
 
-        self.unet.set_attention_slice("auto")
+       # self.unet.set_attention_slice("auto")
             
         self.scheduler = DDIMScheduler.from_pretrained(model_key, subfolder="scheduler")
         # self.scheduler = PNDMScheduler.from_pretrained(model_key, subfolder="scheduler")
@@ -78,6 +63,9 @@ class StableDiffusion(nn.Module):
         # prompt, negative_prompt: [str]
 
         # Tokenize text and get embeddings
+
+        print('text embeddings', prompt, negative_prompt)
+        
         text_input = self.tokenizer(prompt, padding='max_length', max_length=self.tokenizer.model_max_length, truncation=True, return_tensors='pt')
 
         with torch.no_grad():
@@ -95,8 +83,7 @@ class StableDiffusion(nn.Module):
 
 
     def train_step(self, text_embeddings, latents, guidance_scale=100):
-
-        return 0.0
+        
         # interp to 512x512 to be fed into vae.
 
         #pred_rgb_512 = F.interpolate(pred_rgb, (512, 512), mode='bilinear', align_corners=False)
@@ -107,20 +94,27 @@ class StableDiffusion(nn.Module):
         # encode image into latents with vae, requires grad!
         #latents = self.encode_imgs(pred_rgb_512)
 
+        latents = latents.permute(1, 0, 2, 3).unsqueeze(0)
+
         # predict the noise residual with unet, NO grad!
         with torch.no_grad():
             # add noise
             noise = torch.randn_like(latents)
             latents_noisy = self.scheduler.add_noise(latents, noise, t)
             # pred noise
-            latent_model_input = torch.cat([latents_noisy] * 2)
-            text_emb = torch.cat((text_embeddings[:,0], text_embeddings[:,1]), dim=0)
-            print('lmi', latent_model_input.shape, 'te', text_emb.shape)
+            #latent_model_input = torch.cat([latents_noisy] * 2)
+            #text_emb = torch.cat((text_embeddings[:,0], text_embeddings[:,1]), dim=0)
+            #print('lmi', latent_model_input.shape, 'te', text_emb.shape)
             
-            noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_emb).sample
+         
+            #noise_pred = self.unet(latent_model_input.unsqueeze(0), t, encoder_hidden_states=text_emb).sample
+
+
+            noise_pred_uncond = self.unet(latents_noisy, t, encoder_hidden_states=text_embeddings[0:1]).sample
+            noise_pred_text = self.unet(latents_noisy, t, encoder_hidden_states=text_embeddings[1:2]).sample
 
         # perform guidance (high scale from paper!)
-        noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+        #noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
         noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
         # w(t), sigma_t^2

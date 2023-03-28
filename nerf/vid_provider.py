@@ -185,10 +185,52 @@ def circle_poses(device, radius=1.25, theta=90, phi=0, return_dirs=False, angle_
         dirs = None
     
     return poses, dirs    
-    
 
-class NeRFDataset:
-    def __init__(self, opt, device, type='train', H=256, W=256, size=100):
+
+def interp_circle_poses(size, device, radius=1.25, theta_r=(90,90), phi_r=(-20,20), return_dirs=False, angle_overhead=30, angle_front=60):
+
+    theta_r = np.deg2rad(theta_r)
+    phi_r = np.deg2rad(phi_r)
+    angle_overhead = np.deg2rad(angle_overhead)
+    angle_front = np.deg2rad(angle_front)
+
+    #thetas = torch.FloatTensor([theta]).to(device)
+    #phis = torch.FloatTensor([phi]).to(device)
+
+    thetas = torch.linspace(theta_r[0], theta_r[1], size).to(device)
+    phis = torch.linspace(phi_r[0], phi_r[1], size).to(device)
+    
+    centers = torch.stack([
+        radius * torch.sin(thetas) * torch.sin(phis),
+        radius * torch.sin(thetas) * torch.cos(phis),
+        radius * torch.cos(thetas),
+
+    ], dim=-1) # [B, 3]
+
+
+    # lookat
+    forward_vector = safe_normalize(centers)
+    up_vector = torch.FloatTensor([0, 0, 1]).to(device).unsqueeze(0)
+   # right_vector = safe_normalize(torch.cross(forward_vector, up_vector, dim=-1))
+   # up_vector = safe_normalize(torch.cross(right_vector, forward_vector, dim=-1))
+
+    right_vector = safe_normalize(torch.cross(up_vector, forward_vector, dim=-1))
+    up_vector = safe_normalize(torch.cross(forward_vector, right_vector, dim=-1))
+
+    poses = torch.eye(4, dtype=torch.float, device=device).expand(size,-1,-1).clone()
+    poses[:, :3, :3] = torch.stack((right_vector, up_vector, forward_vector), dim=-1)
+    poses[:, :3, 3] = centers
+
+    if return_dirs:
+        dirs = get_view_direction(thetas, phis, angle_overhead, angle_front)
+    else:
+        dirs = None
+    
+    return poses, dirs    
+
+
+class VidNeRFDataset:
+    def __init__(self, opt, device, type='train', H=32, W=32, size=100, frames=16):
         super().__init__()
         
         self.opt = opt
@@ -204,6 +246,9 @@ class NeRFDataset:
         self.cx = self.H / 2
         self.cy = self.W / 2
 
+        print('frames', type, frames)
+        self.frames = frames
+
         # [debug] visualize poses
         # poses, dirs = rand_poses(100, self.device, radius_range=self.opt.radius_range, return_dirs=self.opt.dir_text, angle_overhead=self.opt.angle_overhead, angle_front=self.opt.angle_front, jitter=self.opt.jitter_pose, uniform_sphere_rate=1)
         # visualize_poses(poses.detach().cpu().numpy(), dirs.detach().cpu().numpy())
@@ -213,30 +258,103 @@ class NeRFDataset:
 
         B = len(index) # always 1
 
+        print('BS', index)
+        
         if self.training:
             # random pose on the fly
-            poses, dirs = rand_poses(B, self.device, radius_range=self.opt.radius_range, return_dirs=self.opt.dir_text, angle_overhead=self.opt.angle_overhead, angle_front=self.opt.angle_front, jitter=self.opt.jitter_pose, uniform_sphere_rate=self.opt.uniform_sphere_rate)
 
+            if random.random()>0.25:
+                radius_range = self.opt.radius_range
+                print(radius_range)
+                radius_0 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]
+                radius_1 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]
+                
+
+                radius = torch.linspace(radius_0, radius_1, B).to(self.device)
+                
+                phi_0 = -180 + 360*random.random()
+
+                delta = (45 + 90*random.random())*(1 if random.random()>0.5 else -1)
+                
+                phi_1 = phi_0 + delta
+                
+                theta = 30 + 80*(random.random())
+            else:
+                radius_range = self.opt.radius_range
+                radius_0 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]
+                
+                radius = torch.linspace(radius_0, radius_0, B).to(self.device)
+                
+                phi_0 = -90 + 90*random.random()
+
+                
+                phi_1 = phi_0 
+                
+                theta = 30 + 80*(random.random())               
+            
+            
+            poses, dirs = interp_circle_poses(B, self.device, radius=radius, phi_r=(phi_0, phi_1), theta_r=(theta, theta),  return_dirs=self.opt.dir_text, angle_overhead=self.opt.angle_overhead, angle_front=self.opt.angle_front)
+            
+#            poses, dirs = rand_poses(B, self.device, radius_range=self.opt.radius_range, return_dirs=self.opt.dir_text, angle_overhead=self.opt.angle_overhead, angle_front=self.opt.angle_front, jitter=self.opt.jitter_pose, uniform_sphere_rate=self.opt.uniform_sphere_rate)
+            
             # random focal
             fov = random.random() * (self.opt.fovy_range[1] - self.opt.fovy_range[0]) + self.opt.fovy_range[0]
-        else:
-            # circle pose
-            print('test **' , index, self.size, '**')
-            phi = (index / self.size) * 360
-            poses, dirs = circle_poses(self.device, radius=self.opt.radius_range[1] * 1.2, theta=60, phi=phi, return_dirs=self.opt.dir_text, angle_overhead=self.opt.angle_overhead, angle_front=self.opt.angle_front)
 
-            print(poses, poses.shape)
-            print('det', la.det(poses[0].cpu().numpy()))
-            # fixed focal
-            fov = (self.opt.fovy_range[1] + self.opt.fovy_range[0]) / 2
+            t_duration = 1.0 #0.1+random.random()*0.2
+            t_start = 0.0# (1.0-t_duration)*random.random()
+
+        else:
+            # random pose on the fly
+
+            if random.random()>0.0:
+                radius_range = self.opt.radius_range
+                print(radius_range)
+                radius_0 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]
+                radius_1 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]
+                
+
+                radius = torch.linspace(radius_0, radius_1, B).to(self.device)
+                
+                phi_0 = -90+ 180*random.random()
+
+                delta = (45 + 90*random.random())*(1 if phi_0<0 else -1)
+                
+                phi_1 = phi_0 + delta
+                
+                theta = 40 + 50*(random.random())
+            else:
+                radius_range = self.opt.radius_range
+                radius_0 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]
+                
+                radius = torch.linspace(radius_0, radius_0, B).to(self.device)
+                
+                phi_0 = -90 + 90*random.random()
+
+                
+                phi_1 = phi_0 
+                
+                theta = 30 + 80*(random.random())               
+            t_duration = 1.0
+            t_start = 0.0
+            
+            
+            poses, dirs = interp_circle_poses(B, self.device, radius=radius, phi_r=(phi_0, phi_1), theta_r=(theta, theta),  return_dirs=self.opt.dir_text, angle_overhead=self.opt.angle_overhead, angle_front=self.opt.angle_front)
+            
+#            poses, dirs = rand_poses(B, self.device, radius_range=self.opt.radius_range, return_dirs=self.opt.dir_text, angle_overhead=self.opt.angle_overhead, angle_front=self.opt.angle_front, jitter=self.opt.jitter_pose, uniform_sphere_rate=self.opt.uniform_sphere_rate)
+            
+            # random focal
+            fov = random.random() * (self.opt.fovy_range[1] - self.opt.fovy_range[0]) + self.opt.fovy_range[0]
+
 
         focal = self.H / (2 * np.tan(np.deg2rad(fov) / 2))
         intrinsics = np.array([focal, focal, self.cx, self.cy])
-        
-        ts = torch.tensor([0.5])
+
+        ts = torch.linspace(t_start, t_start+t_duration, B)
         # sample a low-resolution but full image
         rays = get_rays(ts, poses, intrinsics, self.H, self.W, -1)
 
+        print('dirs', dirs)
+        
         data = {
             'ts': ts,
             'H': self.H,
@@ -250,7 +368,8 @@ class NeRFDataset:
 
 
     def dataloader(self):
-        loader = DataLoader(list(range(self.size)), batch_size=1, collate_fn=self.collate, shuffle=self.training, num_workers=0)
+#        loader = DataLoader(list(range(self.size)), batch_size=self.frames, collate_fn=self.collate, shuffle=self.training, num_workers=0)
+        loader = DataLoader(list(range(self.size)), batch_size=self.frames, collate_fn=self.collate, shuffle=False, num_workers=0)
         return loader
 
 
