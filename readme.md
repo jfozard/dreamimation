@@ -18,6 +18,8 @@ python main_vid.py --workspace corgi --static corgi.pth
 
 Sample results
 
+https://user-images.githubusercontent.com/4390954/228365338-5e3c27e0-ecd3-414a-a513-a9f0500b5b4a.mp4
+
 
 
 Note that I've swapped the camera coordinate system back to the original NeRF / blender / NeRFStudio
@@ -27,7 +29,6 @@ one.
 @misc{stable-dreamfusion,
     Author = {Jiaxiang Tang},
 
-https://user-images.githubusercontent.com/4390954/228365338-5e3c27e0-ecd3-414a-a513-a9f0500b5b4a.mp4
 
 
     Year = {2022},
