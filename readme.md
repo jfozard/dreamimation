@@ -25,14 +25,4 @@ https://user-images.githubusercontent.com/4390954/228365338-5e3c27e0-ecd3-414a-a
 Note that I've swapped the camera coordinate system back to the original NeRF / blender / NeRFStudio
 one.
 
-```
-@misc{stable-dreamfusion,
-    Author = {Jiaxiang Tang},
 
-
-
-    Year = {2022},
-    Note = {https://github.com/ashawkey/stable-dreamfusion},
-    Title = {Stable-dreamfusion: Text-to-3D with Stable-diffusion}
-}
-```
