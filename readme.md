@@ -7,8 +7,18 @@ This approach follows Make-A-Video 3D, but deforming the tripane NeRF rather tha
 
 Still very much a work-in progress.
 
+Sample starting timepoint data at
 
+https://drive.google.com/file/d/16NtLqgJKUA9y5N2m-Yvx057V5r0F-Zgu/view?usp=share_link
 
+To use:
+```
+python main_vid.py --workspace corgi --static corgi.pth
+```
+
+Sample results
+
+https://discord.com/channels/823813159592001537/970407461754396762/1090371359462408302
 
 Note that I've swapped the camera coordinate system back to the original NeRF / blender / NeRFStudio
 one.
