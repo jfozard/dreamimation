@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--res', default=128, help="static resolution")
-    parser.add_argument('--d_res', default=8, help="static resolution")
+    parser.add_argument('--d_res', default=8, type=int, help="static resolution")
     parser.add_argument('--d_frames', type=int, default=16, help="num frames for NeRF in training")
 
     parser.add_argument('--static_ckpt', default=None, help="static initial checkpoint")
@@ -28,7 +28,9 @@ if __name__ == '__main__':
     parser.add_argument('--guidance', type=str, default='stable-diffusion', help='choose from [stable-diffusion, clip]')
     parser.add_argument('--seed', type=int, default=0)
 
-    parser.add_argument('--mcubes_resolution', type=int, default=256, help="mcubes resolution for extracting mesh")
+    parser.add_argument('--mcubes_resolution', type=int, default=64, help="mcubes resolution for extracting mesh")
+    parser.add_argument('--mcubes_bbox', type=float, default=1.0, help="mcubes resolution for extracting mesh")
+
     parser.add_argument('--decimate_target', type=int, default=1e5, help="target face number for mesh decimation")
 
     ### training options

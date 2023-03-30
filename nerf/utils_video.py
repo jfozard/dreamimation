@@ -557,10 +557,10 @@ class Trainer(object):
         os.makedirs(save_path, exist_ok=True)
 
         if loader is None: # mcubes
-            self.model.export_mesh(save_path, resolution=self.opt.mcubes_resolution, decimate_target=self.opt.decimate_target)
+            self.model.export_mesh(save_path, decimate_target=self.opt.decimate_target, resolution=self.opt.mcubes_resolution, bbox_size=self.opt.mcubes_bbox)
         else: # poisson (TODO: not working currently...)
             points, normals = self.generate_point_cloud(loader)
-            self.model.export_mesh(save_path, points=points, normals=normals, decimate_target=self.opt.decimate_target)
+            self.model.export_mesh(save_path, points=points, normals=normals, decimate_target=self.opt.decimate_target, resolution=self.opt.mcubes_resolution, bbox_size=self.opt.mcubes_bbox)
 
         self.log(f"==> Finished saving mesh.")
 
@@ -625,10 +625,14 @@ class Trainer(object):
                     preds, preds_depth, _ = self.eval_step(self.global_step, data)
                     print('preds', preds.shape)
                     pred_imgs = []
+                    #preds = self.guidance.decode_latents(preds.permute(0,3,1,2)).permute(0,2,3,1)
+
                     for j in range(preds.shape[0]):
                         pred = F.interpolate(preds[j:j+1].permute(0,3,1,2), (self.opt.dwh, self.opt.dwh),  mode='bilinear', antialias=True)              
                         #print(pred.shape)
+                        #pred = preds[j:j+1].permute(0,3,1,2)
                         pred = self.guidance.decode_latents(pred).permute(0,2,3,1)
+                        #pred = preds[j:j+1]
                         pred = pred.detach().cpu().numpy()
                         pred = (pred * 255).astype(np.uint8)
 

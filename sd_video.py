@@ -39,10 +39,10 @@ class VideoDiffusion(nn.Module):
         self.device = device
 
         # Create model
-        self.vae = AutoencoderKL.from_pretrained(model_key, subfolder="vae",  torch_dtype=torch.float16, variant="fp16").to(self.device)
+        self.vae = AutoencoderKL.from_pretrained(model_key, subfolder="vae",  torch_dtype=torch.float16, variant="fp16", safetensors=False).to(self.device)
         self.tokenizer = CLIPTokenizer.from_pretrained(model_key, subfolder="tokenizer")
         self.text_encoder = CLIPTextModel.from_pretrained(model_key, subfolder="text_encoder", variant="fp16").cpu() #.to(self.device)
-        self.unet = UNet3DConditionModel.from_pretrained(model_key, subfolder="unet",  torch_dtype=torch.float16, variant="fp16").to(self.device)
+        self.unet = UNet3DConditionModel.from_pretrained(model_key, subfolder="unet",  torch_dtype=torch.float16, variant="fp16", safetensors=False).to(self.device)
 
         if is_xformers_available():
             self.unet.enable_xformers_memory_efficient_attention()
