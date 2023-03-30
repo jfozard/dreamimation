@@ -126,7 +126,7 @@ class DeformNeRFNetwork(NeRFRenderer):
         self.d_mat, self.d_vec = self.init_one_svd(self.d_rank, self.resolution)
         self.d_net = MLP(sum(self.d_rank)*3, 3, hidden_dim, num_layers, bias=True)
 
-        self.d_scale = 0.1
+        self.d_scale = opt.d_scale
 
         self.opt = opt
 

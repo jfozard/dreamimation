@@ -199,9 +199,9 @@ class NeRFRenderer(nn.Module):
             ]).float().cuda()
         
         def to_rgb(l):
-            l = l #*  0.18215
+            l = l * 0#  0.18215
             c = (l @ v1_4_rgb_latent_factors)
-            return (2*c - 1.0).clip_(0.0, 1.0)
+            return (c).clip_(0.0, 1.0)
 
         def _export(v, f, h0=2048, w0=2048, ssaa=1, name=''):
             # v, f: torch Tensor
@@ -408,9 +408,9 @@ class NeRFRenderer(nn.Module):
             ]).float().cuda()
         
         def to_rgb(l):
-            l = l #*  0.18215
+            l = l #/ 0.18215
             c = (l @ v1_4_rgb_latent_factors)
-            return (2*c - 1.0).clip_(0.0, 1.0)
+            return (c).clip_(0.0, 1.0)
 
         def _export(v, f, h0=2048, w0=2048, ssaa=1, name=''):
             # v, f: torch Tensor
