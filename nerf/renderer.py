@@ -547,7 +547,7 @@ class NeRFRenderer(nn.Module):
 
 
 
-    def run(self, ts, rays_o, rays_d, num_steps=128, upsample_steps=128, light_d=None, ambient_ratio=1.0, shading='albedo', bg_color=None, perturb=False, **kwargs):
+    def run(self, ts, rays_o, rays_d, emptiness_loss_scale=10.0, num_steps=128, upsample_steps=128, light_d=None, ambient_ratio=1.0, shading='albedo', bg_color=None, perturb=False, **kwargs):
         # rays_o, rays_d: [B, N, 3], assumes B == 1
         # bg_color: [BN, 3] in range [0, 1]
         # return: image: [B, N, 3], depth: [B, N]
@@ -683,6 +683,8 @@ class NeRFRenderer(nn.Module):
         results['weights'] = weights
         results['weights_sum'] = weights_sum
 
+        results['scaled_emptiness'] = torch.log(1 + emptiness_loss_scale*weights).mean(dim=-1)
+        
         return results
 
 
