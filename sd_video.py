@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.cuda.amp import custom_bwd, custom_fwd 
+from math import sqrt
 
 class SpecifyGradient(torch.autograd.Function):
     @staticmethod
@@ -96,10 +97,13 @@ class VideoDiffusion(nn.Module):
 
         latents = latents.permute(1, 0, 2, 3).unsqueeze(0)
 
+#        inv_sq = (1.0/sqrt(2.0))
         # predict the noise residual with unet, NO grad!
         with torch.no_grad():
             # add noise
+            #noise = inv_sq*(torch.randn_like(latents) + torch.randn_like(latents[:,:,:1,:,:]))
             noise = torch.randn_like(latents)
+            
             latents_noisy = self.scheduler.add_noise(latents, noise, t)
             # pred noise
             #latent_model_input = torch.cat([latents_noisy] * 2)

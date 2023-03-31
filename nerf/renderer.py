@@ -705,6 +705,7 @@ class NeRFRenderer(nn.Module):
         if staged and not self.cuda_ray:
             depth = torch.empty((B, N), device=device)
             image = torch.empty((B, N, 4), device=device)
+            scaled_emptiness = torch.empty((B, N), device=device)
             weights_sum = torch.empty((B, N), device=device)
 
             for b in range(B):
@@ -715,12 +716,14 @@ class NeRFRenderer(nn.Module):
                     depth[b:b+1, head:tail] = results_['depth']
                     weights_sum[b:b+1, head:tail] = results_['weights_sum']
                     image[b:b+1, head:tail] = results_['image']
+                    scaled_emptiness[b:b+1, head:tail] = results_['scaled_emptiness']
                     head += max_ray_batch
             
             results = {}
             results['depth'] = depth
             results['image'] = image
             results['weights_sum'] = weights_sum
+            results['scaled_emptiness'] = scaled_emptiness
 
         else:
             results = _run(ts, rays_o, rays_d, **kwargs)

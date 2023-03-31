@@ -440,6 +440,12 @@ class Trainer(object):
         if self.opt.lambda_tv >0:
             loss = loss + self.opt.lambda_tv*self.model.loss_tv()
 
+        if self.opt.lambda_emptiness>0:
+            loss = loss + self.opt.lambda_emptiness*outputs['scaled_emptiness'].mean()
+
+        if self.opt.lambda_clip >0:
+            loss = loss + self.opt.lambda_clip*(torch.exp(pred_rgb**2-self.opt.lambda_clip_r**2).mean())
+
         if self.opt.lambda_depth>0:
             loss = loss + self.opt.lambda_depth*depth_smooth_loss(pred_depth)
             
@@ -774,6 +780,7 @@ class Trainer(object):
                 print(data)
                 with torch.cuda.amp.autocast(enabled=self.fp16):
                     preds, preds_depth, loss = self.eval_step(self.global_step, data)
+                    print('latents range', preds.amin(dim=(0,-1,-2)), preds.mean(dim=(0,-1,-2)), preds.amax(dim=(0,-1,-2)))
                     preds = self.guidance.decode_latents(preds.permute(0,3,1,2)).permute(0,2,3,1)
 
                 print('eval_preds', preds.shape)

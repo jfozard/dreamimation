@@ -85,7 +85,9 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_opacity', type=float, default=0, help="loss scale for alpha value")
     parser.add_argument('--lambda_orient', type=float, default=0e-2, help="loss scale for orientation") ## was 1e-2
     parser.add_argument('--lambda_tv', type=float, default=0e-7, help="loss scale for total variation")
-    #parser.add_argument('--lambda_depth', type=float, default=1e0, help="loss scale for total variation")
+    parser.add_argument('--lambda_emptiness', type=float, default=0.0, help="loss scale for emptiness (SJC)") ## was 1e-2
+    parser.add_argument('--lambda_clip', type=float, default=1.0, help="loss scale for emptiness (SJC)") ## was 1e-2
+    parser.add_argument('--lambda_clip_r', type=float, default=1.5, help="loss scale for emptiness (SJC)") ## was 1e-2
     parser.add_argument('--lambda_depth', type=float, default=0e-1, help="loss scale for total variation")
 
     ### GUI options

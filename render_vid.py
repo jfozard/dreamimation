@@ -12,8 +12,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--res', default=128, help="static resolution")
-    parser.add_argument('--d_res', default=8, type=int, help="static resolution")
+    parser.add_argument('--d_res', type=int, default=8, help="dynamic resolution")
     parser.add_argument('--d_frames', type=int, default=16, help="num frames for NeRF in training")
+    parser.add_argument('--d_scale', type=float, default=0.1, help="num frames for NeRF in training")
 
     parser.add_argument('--static_ckpt', default=None, help="static initial checkpoint")
 
