@@ -198,10 +198,15 @@ class DeformNeRFNetwork(NeRFRenderer):
         # normalize to [-1, 1] inside aabb_train
         x = 2 * (x - self.aabb_train[:4]) / (self.aabb_train[4:] - self.aabb_train[:4]) - 1
 
-        x = self.deform(x)
+        xd = self.deform(x)
 
-        return self.static.density(x)
+        
+        
+        res = self.static.density(xd)
 
+        res['xd'] = xd
+
+        return res
 
     
     def background(self, d):

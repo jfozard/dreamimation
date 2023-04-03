@@ -425,6 +425,11 @@ class Trainer(object):
             loss_opacity = (outputs['weights_sum'] ** 2).mean()
             loss = loss + self.opt.lambda_opacity * loss_opacity
 
+        if self.opt.lambda_stretch>0:
+            loss_stretch = outputs['stretch'].mean()
+            loss = loss + self.opt.lambda_stretch * loss_stretch
+
+
         if self.opt.lambda_entropy > 0:
             alphas = outputs['weights_sum'].clamp(1e-5, 1 - 1e-5)
             # alphas = alphas ** 2 # skewed entropy, favors 0 over 1

@@ -306,7 +306,7 @@ class VidNeRFDataset:
         else:
             # random pose on the fly
 
-            if random.random()>0.5:
+            if random.random()>1.0:
                 radius_range = self.opt.radius_range
                 print(radius_range)
                 radius_0 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]

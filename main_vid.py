@@ -88,7 +88,8 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_emptiness', type=float, default=0.0, help="loss scale for emptiness (SJC)") ## was 1e-2
     parser.add_argument('--lambda_clip', type=float, default=1.0, help="loss scale for emptiness (SJC)") ## was 1e-2
     parser.add_argument('--lambda_clip_r', type=float, default=1.5, help="loss scale for emptiness (SJC)") ## was 1e-2
-    parser.add_argument('--lambda_depth', type=float, default=0e-1, help="loss scale for total variation")
+    parser.add_argument('--lambda_depth', type=float, default=0e-1, help="loss scale for depth smoothness")
+    parser.add_argument('--lambda_stretch', type=float, default=1.0, help="loss scale for stretch")
 
     ### GUI options
     parser.add_argument('--gui', action='store_true', help="start a GUI")

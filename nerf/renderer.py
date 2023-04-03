@@ -13,6 +13,8 @@ import raymarching
 from meshutils import decimate_mesh, clean_mesh, poisson_mesh_reconstruction
 from .utils import custom_meshgrid, safe_normalize
 
+from torch import linalg as LA
+
 def sample_pdf(bins, weights, n_samples, det=False):
     # This implementation is from NeRF
     # bins: [B, T], old_z_vals
@@ -579,6 +581,8 @@ class NeRFRenderer(nn.Module):
         z_vals = z_vals.expand((N, num_steps)) # [N, T]
         z_vals = nears + (fars - nears) * z_vals # [N, T], in [nears, fars]
 
+        
+        
         # perturb z_vals
         sample_dist = (fars - nears) / num_steps
         if perturb:
@@ -592,7 +596,7 @@ class NeRFRenderer(nn.Module):
         #plot_pointcloud(xyzs.reshape(-1, 3).detach().cpu().numpy())
 
         # query SDF and RGB
-        density_outputs = self.density(ts, xyzts.reshape(-1, 4))
+        density_outputs = self.density(ts, xyzts.reshape(-1, 4), return_d=True)
 
         #sigmas = density_outputs['sigma'].view(N, num_steps) # [N, T]
         for k, v in density_outputs.items():
@@ -633,12 +637,21 @@ class NeRFRenderer(nn.Module):
                 tmp_output = torch.cat([density_outputs[k], new_density_outputs[k]], dim=1)
                 density_outputs[k] = torch.gather(tmp_output, dim=1, index=z_index.unsqueeze(-1).expand_as(tmp_output))
 
+
+        
+                
         deltas = z_vals[..., 1:] - z_vals[..., :-1] # [N, T+t-1]
         deltas = torch.cat([deltas, sample_dist * torch.ones_like(deltas[..., :1])], dim=-1)
         alphas = 1 - torch.exp(-deltas * density_outputs['sigma'].squeeze(-1)) # [N, T+t]
         alphas_shifted = torch.cat([torch.ones_like(alphas[..., :1]), 1 - alphas + 1e-15], dim=-1) # [N, T+t+1]
         weights = alphas * torch.cumprod(alphas_shifted, dim=-1)[..., :-1] # [N, T+t]
 
+        dist_xyz = LA.vector_norm(xyzts[:,1:,:3] - xyzts[:,:-1,:3], dim=-1)
+        d_xyzts = density_outputs['xd']
+        d_dist_xyz = LA.vector_norm(d_xyzts[:,1:,:3] - d_xyzts[:,:-1,:3], dim=-1)
+
+        stretch = (torch.log(((d_dist_xyz/dist_xyz)**2)*alphas).clamp(1e-6,1e6)).sum(dim=-1)
+        
         dirs = rays_d.view(-1, 1, 4).expand_as(xyzts)
         for k, v in density_outputs.items():
             density_outputs[k] = v.view(-1, v.shape[-1])
@@ -682,6 +695,7 @@ class NeRFRenderer(nn.Module):
         results['depth'] = depth
         results['weights'] = weights
         results['weights_sum'] = weights_sum
+        results['stretch'] = stretch
 
         results['scaled_emptiness'] = torch.log(1 + emptiness_loss_scale*weights).mean(dim=-1)
         
