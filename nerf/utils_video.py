@@ -489,11 +489,12 @@ class Trainer(object):
         pred_rgb = outputs['image'].reshape(B, H, W, 4)
         #print('shapes', outputs['image'].shape, pred_rgb.shape)
         pred_depth = F.interpolate(outputs['depth'].reshape(B, 1, H, W), size=(H*8, W*8), mode='bilinear', align_corners=False).squeeze(1)
+        pred_mask = F.interpolate(outputs['weights_sum'].reshape(B, 1, H, W), size=(H*8, W*8), mode='bilinear', align_corners=False).squeeze(1)
 
         # dummy 
         loss = torch.zeros([1], device=pred_rgb.device, dtype=pred_rgb.dtype)
 
-        return pred_rgb, pred_depth, loss
+        return pred_rgb, pred_depth, pred_mask, loss
 
     def test_step(self, data, bg_color=None, perturb=True):  
         rays_o = data['rays_o'] # [B, N, 3]
@@ -633,7 +634,7 @@ class Trainer(object):
             for i, data in enumerate(loader):
                 
                 with torch.cuda.amp.autocast(enabled=self.fp16):
-                    preds, preds_depth, _ = self.eval_step(self.global_step, data)
+                    preds, preds_depth, preds_mask, _ = self.eval_step(self.global_step, data)
                     print('preds', preds.shape)
                     pred_imgs = []
                     #preds = self.guidance.decode_latents(preds.permute(0,3,1,2)).permute(0,2,3,1)
@@ -784,7 +785,7 @@ class Trainer(object):
 
                 print(data)
                 with torch.cuda.amp.autocast(enabled=self.fp16):
-                    preds, preds_depth, loss = self.eval_step(self.global_step, data)
+                    preds, preds_depth, preds_mask, loss = self.eval_step(self.global_step, data)
                     print('latents range', preds.amin(dim=(0,-1,-2)), preds.mean(dim=(0,-1,-2)), preds.amax(dim=(0,-1,-2)))
                     preds = self.guidance.decode_latents(preds.permute(0,3,1,2)).permute(0,2,3,1)
 
@@ -798,6 +799,10 @@ class Trainer(object):
                     preds_depth_list = [torch.zeros_like(preds_depth).to(self.device) for _ in range(self.world_size)] # [[B, ...], [B, ...], ...]
                     dist.all_gather(preds_depth_list, preds_depth)
                     preds_depth = torch.cat(preds_depth_list, dim=0)
+
+                    preds_mask_list = [torch.zeros_like(preds_mask).to(self.device) for _ in range(self.world_size)] # [[B, ...], [B, ...], ...]
+                    dist.all_gather(preds_mask_list, preds_mask)
+                    preds_mask = torch.cat(preds_mask_list, dim=0)
                 
                 loss_val = loss.item()
                 total_loss += loss_val
@@ -809,11 +814,13 @@ class Trainer(object):
                         
                     save_path = os.path.join(self.workspace, 'validation')
                     save_path_depth = os.path.join(self.workspace, 'validation_depth')
+                    save_path_mask = os.path.join(self.workspace, 'validation_mask')
                     name = f'{name}_{self.local_step:04d}_'
 
                     self.log(f"==> Saving validation image to {save_path}")
                     os.makedirs(save_path, exist_ok=True)
                     os.makedirs(save_path_depth, exist_ok=True)
+                    os.makedirs(save_path_mask, exist_ok=True)
                     
                     pred = preds.detach().cpu().numpy()
                     pred = (pred * 255).astype(np.uint8)
@@ -822,12 +829,17 @@ class Trainer(object):
                     pred_depth = (pred_depth - pred_depth.min()) / (pred_depth.max() - pred_depth.min() + 1e-6)
                     pred_depth = (pred_depth * 255).astype(np.uint8)
                   
+                    pred_mask = preds_mask.detach().cpu().numpy()
+                    pred_mask = (pred_mask - pred_mask.min()) / (pred_mask.max() - pred_mask.min() + 1e-6)
+                    pred_mask = (pred_mask * 255).astype(np.uint8)
+                  
                     # save image
                     for j in range(preds.shape[0]):
 
                         print('save', os.path.join(save_path, name+f'{j:03d}_rgb.png'))
                         cv2.imwrite(os.path.join(save_path, name+f'{j:03d}_rgb.png'), cv2.cvtColor(pred[j], cv2.COLOR_RGB2BGR))
                         cv2.imwrite(os.path.join(save_path_depth, name+f'{j:03d}.png'), pred_depth[j])
+                        cv2.imwrite(os.path.join(save_path_mask, name+f'{j:03d}.png'), pred_mask[j])
 
                     pbar.set_description(f"loss={loss_val:.4f} ({total_loss/self.local_step:.4f})")
                     pbar.update(loader.batch_size)

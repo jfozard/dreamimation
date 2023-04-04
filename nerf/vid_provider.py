@@ -305,8 +305,10 @@ class VidNeRFDataset:
 
         else:
             # random pose on the fly
+            r = random.random()
+            print('eval', r)
 
-            if random.random()>1.0:
+            if r>0.5:
                 radius_range = self.opt.radius_range
                 print(radius_range)
                 radius_0 = random.random() * (radius_range[1] - radius_range[0]) + radius_range[0]
@@ -315,7 +317,7 @@ class VidNeRFDataset:
 
                 radius = torch.linspace(radius_0, radius_1, B).to(self.device)
                 
-                phi_0 = -180+ 180*random.random()
+                phi_0 = -180 + 360*random.random()
 
                 delta = (90 + 90*random.random())*(1 if phi_0<0 else -1)
                 

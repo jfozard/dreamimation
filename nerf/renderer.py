@@ -596,7 +596,7 @@ class NeRFRenderer(nn.Module):
         #plot_pointcloud(xyzs.reshape(-1, 3).detach().cpu().numpy())
 
         # query SDF and RGB
-        density_outputs = self.density(ts, xyzts.reshape(-1, 4), return_d=True)
+        density_outputs = self.density(ts, xyzts.reshape(-1, 4), return_xd=True)
 
         #sigmas = density_outputs['sigma'].view(N, num_steps) # [N, T]
         for k, v in density_outputs.items():
@@ -621,7 +621,7 @@ class NeRFRenderer(nn.Module):
 #                new_xyzts = torch.min(torch.max(new_xyzts, aabb[:4]), aabb[4:]) # a manual clip.
 
             # only forward new points to save computation
-            new_density_outputs = self.density(ts, new_xyzts.reshape(-1, 4))
+            new_density_outputs = self.density(ts, new_xyzts.reshape(-1, 4),  return_xd=True)
             #new_sigmas = new_density_outputs['sigma'].view(N, upsample_steps) # [N, t]
             for k, v in new_density_outputs.items():
                 new_density_outputs[k] = v.view(N, upsample_steps, -1)
@@ -646,11 +646,15 @@ class NeRFRenderer(nn.Module):
         alphas_shifted = torch.cat([torch.ones_like(alphas[..., :1]), 1 - alphas + 1e-15], dim=-1) # [N, T+t+1]
         weights = alphas * torch.cumprod(alphas_shifted, dim=-1)[..., :-1] # [N, T+t]
 
-        dist_xyz = LA.vector_norm(xyzts[:,1:,:3] - xyzts[:,:-1,:3], dim=-1)
+        dist_xyz = (LA.vector_norm(xyzts[:,1:,:3] - xyzts[:,:-1,:3], dim=-1)).clamp(1e-6, 1e6)
         d_xyzts = density_outputs['xd']
-        d_dist_xyz = LA.vector_norm(d_xyzts[:,1:,:3] - d_xyzts[:,:-1,:3], dim=-1)
+        d_dist_xyz = LA.vector_norm(d_xyzts[:,1:,:3] - d_xyzts[:,:-1,:3], dim=-1).clamp(1e-6, 1e6)
 
-        stretch = (torch.log(((d_dist_xyz/dist_xyz)**2)*alphas).clamp(1e-6,1e6)).sum(dim=-1)
+        print('dist_xyz', dist_xyz)
+        print('d_dist_xyz', d_dist_xyz)
+
+        #print(xyzts.shape, dist_xyz.shape, d_dist_xyz.shape, alphas.shape)
+        stretch = (torch.log((d_dist_xyz/dist_xyz)**2)*alphas[:,:-1]).sum(dim=-1)
         
         dirs = rays_d.view(-1, 1, 4).expand_as(xyzts)
         for k, v in density_outputs.items():

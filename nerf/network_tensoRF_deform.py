@@ -192,7 +192,7 @@ class DeformNeRFNetwork(NeRFRenderer):
         return self.static( x, d )
 
       
-    def density(self, ts, x):
+    def density(self, ts, x, return_xd=False):
         # x: [N, 3], in [-bound, bound]
 
         # normalize to [-1, 1] inside aabb_train
@@ -203,8 +203,8 @@ class DeformNeRFNetwork(NeRFRenderer):
         
         
         res = self.static.density(xd)
-
-        res['xd'] = xd
+        if return_xd:
+            res['xd'] = xd
 
         return res
 

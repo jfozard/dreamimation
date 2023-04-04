@@ -48,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps', type=int, default=64, help="num steps sampled per ray (only valid when not using --cuda_ray)")
     parser.add_argument('--upsample_steps', type=int, default=64, help="num steps up-sampled per ray (only valid when not using --cuda_ray)")
     parser.add_argument('--update_extra_interval', type=int, default=16, help="iter interval to update extra status (only valid when using --cuda_ray)")
-    parser.add_argument('--max_ray_batch', type=int, default=2048, help="batch size of rays at inference to avoid OOM (only valid when not using --cuda_ray)")
+    parser.add_argument('--max_ray_batch', type=int, default=4096, help="batch size of rays at inference to avoid OOM (only valid when not using --cuda_ray)")
     parser.add_argument('--albedo', default=True, action='store_true', help="only use albedo shading to train, overrides --albedo_iters")
     parser.add_argument('--albedo_iters', type=int, default=1000, help="training iters that only use albedo shading")
     parser.add_argument('--uniform_sphere_rate', type=float, default=0.5, help="likelihood of sampling camera location uniformly on the sphere surface area")
