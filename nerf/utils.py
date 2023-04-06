@@ -38,6 +38,17 @@ def custom_meshgrid(*args):
 def safe_normalize(x, eps=1e-20):
     return x / torch.sqrt(torch.clamp(torch.sum(x * x, -1, keepdim=True), min=eps))
 
+def nerdi_depth_loss(pred, target):
+    # predicted: predicted depth [B, 1, H, W]
+    # target: target (MiDaS) depth [B, 1, H, W]
+    var_pred = torch.var(pred, dim=(-2,-1))
+    var_target = torch.var(target, dim=(-2,-1))
+    pred = pred - pred.mean(dim=(-2,-1)).unsqeeze(-1).unsqueeze(-1)
+    target = target - target.mean(dim=(-2,-1)).unsqeeze(-1).unsqueeze(-1)
+    cov = (pred*target).sum(dim=(-2,-1))/(pred.shape[-2]*pred.shape[-1]-1)
+    return (cov/torch.sqrt(var_pred*var_target)).squeeze(1)
+
+
 @torch.cuda.amp.autocast(enabled=False)
 def get_rays(ts, poses, intrinsics, H, W, N=-1, error_map=None):
     ''' get rays
